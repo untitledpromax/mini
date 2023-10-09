@@ -197,6 +197,7 @@ RC RecordPageHandler::insert_record(const char *data, RID *rid)
   return RC::SUCCESS;
 }
 
+
 RC RecordPageHandler::recover_insert_record(const char *data, RID *rid)
 {
   if (page_header_->record_num == page_header_->record_capacity) {

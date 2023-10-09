@@ -21,6 +21,23 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
+RC field_type_compare_compatible_table(AttrType type_left, AttrType type_right)
+{
+  static std::vector<std::unordered_set<AttrType>> type_map = {
+      {},
+      {CHARS},
+      {INTS, FLOATS},
+      {FLOATS,INTS}};
+  auto &left_compatitable_set = type_map[type_left];
+  auto &right_compatitable_set = type_map[type_right];
+  if ((left_compatitable_set.find(type_right) == left_compatitable_set.end()) && (right_compatitable_set.find(type_left) == right_compatitable_set.end()))
+  {
+    LOG_ERROR("Invalid type comparision with unsupported attribute type: %d,%d", type_left, type_right);
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  return RC::SUCCESS;
+}
+
 ConditionFilter::~ConditionFilter()
 {}
 

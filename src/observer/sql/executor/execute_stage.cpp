@@ -143,7 +143,7 @@ void ExecuteStage::handle_request(common::StageEvent *event)
       do_insert(sql_event);
     } break;
     case StmtType::UPDATE: {
-      //do_update((UpdateStmt *)stmt, session_event);
+      do_update(sql_event);
     } break;
     case StmtType::DELETE: {
       do_delete(sql_event);
@@ -176,10 +176,10 @@ void ExecuteStage::handle_request(common::StageEvent *event)
       default_storage_stage_->handle_event(event);
     } break;
     case SCF_SYNC: {
-      /*
+      
       RC rc = DefaultHandler::get_default().sync();
       session_event->set_response(strrc(rc));
-      */
+      sql_event->done_immediate();
     } break;
     case SCF_BEGIN: {
       do_begin(sql_event);
@@ -545,6 +545,51 @@ RC ExecuteStage::do_insert(SQLStageEvent *sql_event)
   Table *table = insert_stmt->table();
 
   RC rc = table->insert_record(trx, insert_stmt->value_amount(), insert_stmt->values());
+  if (rc == RC::SUCCESS) {
+    if (!session->is_trx_multi_operation_mode()) {
+      CLogRecord *clog_record = nullptr;
+      rc = clog_manager->clog_gen_record(CLogType::REDO_MTR_COMMIT, trx->get_current_id(), clog_record);
+      if (rc != RC::SUCCESS || clog_record == nullptr) {
+        session_event->set_response("FAILURE\n");
+        return rc;
+      }
+
+      rc = clog_manager->clog_append_record(clog_record);
+      if (rc != RC::SUCCESS) {
+        session_event->set_response("FAILURE\n");
+        return rc;
+      } 
+
+      trx->next_current_id();
+      session_event->set_response("SUCCESS\n");
+    } else {
+      session_event->set_response("SUCCESS\n");
+    }
+  } else {
+    session_event->set_response("FAILURE\n");
+  }
+  return rc;
+}
+
+RC ExecuteStage::do_update(SQLStageEvent *sql_event)
+{
+  Stmt *stmt = sql_event->stmt();
+  SessionEvent *session_event = sql_event->session_event();
+  Session *session = session_event->session();
+  Db *db = session->get_current_db();
+  Trx *trx = session->current_trx();
+  CLogManager *clog_manager = db->get_clog_manager();
+
+  if (stmt == nullptr) {
+    LOG_WARN("cannot find statement");
+    return RC::GENERIC_ERROR;
+  }
+
+  UpdateStmt *update_stmt = (UpdateStmt *)stmt;
+  Table *table = update_stmt->table();
+
+  RC rc = table->update_record(trx, update_stmt->attribute_name(), update_stmt->values(), update_stmt->condition_num(),
+      update_stmt->conditions(), update_stmt->updated_count());
   if (rc == RC::SUCCESS) {
     if (!session->is_trx_multi_operation_mode()) {
       CLogRecord *clog_record = nullptr;

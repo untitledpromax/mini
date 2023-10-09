@@ -515,14 +515,16 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
       LOG_WARN("failed to fetch next record. rc=%d:%s", rc, strrc(rc));
       return rc;
     }
-    if (trx == nullptr || trx->is_visible(this, &record)) {
+    printf("%d %d\n",trx == nullptr, trx->is_visible(this, &record));
+    //if (trx == nullptr || trx->is_visible(this, &record)) { 
       rc = record_reader(&record, context);
       if (rc != RC::SUCCESS) {
         break;
       }
       record_count++;
     }
-  }
+    std::printf("%d\n", record_count);
+  //}
 
   scanner.close_scan();
   return rc;
@@ -677,10 +679,85 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   return rc;
 }
 
+void Table::copy_data(const Value& copy_from, const FieldMeta * field_meta, char* copy_to) {
+  if (copy_from.type == CHARS) {
+    memcpy(copy_to, copy_from.data, std::min(field_meta->len(), (int) strlen((char*) copy_from.data) + 1)); 
+  } else {
+    memcpy(copy_to, copy_from.data, field_meta->len());
+  }
+}
+
+RC Table::update_record(Record * record,const FieldMeta * field_meta,const Value * value){
+  copy_data(*value, field_meta, record->data() + field_meta->offset());
+  return this->record_handler_->update_record(record);
+  //return RC::SUCCESS;
+}
+
+class RecordUpdater {
+public:
+  RecordUpdater(Trx *trx,const FieldMeta *field_meta, Table &table, const Value *value) 
+  : trx_(trx), field_meta_(field_meta),table_(table), value_(value) {
+  }
+
+  RC update_record(Record *record) {
+    RC rc = RC::SUCCESS;
+    // 在这里修改record的内容，注意现在只用修改单个字段，所以扫描一下record的每个字段，更新对的字段就行了，注意跳过系统字段
+    table_.update_record(record, field_meta_, value_);
+    
+
+        
+    if (rc == RC::SUCCESS) {
+      updated_count_++;
+    }
+    return rc;
+  }
+
+  int updated_count() const {
+    return updated_count_; 
+  }
+
+private:
+  Trx *trx_;
+  const FieldMeta * field_meta_;
+  Table & table_;
+  const Value * value_;
+  int updated_count_ = 0;
+};
+
+
+
+static RC record_reader_update_adapter(Record *record, void *context) {
+  RecordUpdater &record_updater = *(RecordUpdater *)context;
+  return record_updater.update_record(record);
+}
+
 RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num,
     const Condition conditions[], int *updated_count)
 {
-  return RC::GENERIC_ERROR;
+  CompositeConditionFilter condition_filter;
+  RC rc = condition_filter.init(*this, conditions, condition_num);
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+
+  // 检查属性名是否合法
+  const FieldMeta *field_meta = this->table_meta().field(attribute_name);
+  if (nullptr == field_meta) {
+    LOG_WARN("No such field. %s.%s", this->name(), attribute_name);
+    return RC::SCHEMA_FIELD_MISSING;
+  }
+  if (field_type_compare_compatible_table(field_meta->type(), value->type) != RC::SUCCESS )
+  {
+    LOG_WARN("Invalid value type. field name=%s, type=%d, but given=%d", this->name(), field_meta->type(), value->type);
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  RecordUpdater updater(trx, field_meta,*this, value);
+  rc = scan_record(trx, &condition_filter, -1, &updater, record_reader_update_adapter);
+  if (updated_count != nullptr)
+  {
+    *updated_count = updater.updated_count();
+  }
+  return rc;
 }
 
 class RecordDeleter {

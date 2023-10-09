@@ -28,6 +28,8 @@ struct ConDesc {
   void *value;      // 如果是值类型，这里记录值的数据
 };
 
+RC field_type_compare_compatible_table(AttrType type_left, AttrType type_right);
+
 class ConditionFilter {
 public:
   virtual ~ConditionFilter();
