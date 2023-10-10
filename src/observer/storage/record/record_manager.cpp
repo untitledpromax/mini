@@ -241,8 +241,6 @@ RC RecordPageHandler::update_record(const Record *rec)
     memcpy(record_data, rec->data(), page_header_->record_real_size);
     bitmap.set_bit(rec->rid().slot_num);
     frame_->mark_dirty();
-    DiskBufferPool *disk_buffer_pool = disk_buffer_pool_;
-    disk_buffer_pool -> flush_page(*frame_);
     // LOG_TRACE("Update record. file_id=%d, page num=%d,slot=%d", file_id_, rec->rid.page_num, rec->rid.slot_num);
     return RC::SUCCESS;
   }

@@ -14,13 +14,6 @@
 			"offset" : 4,
 			"type" : "ints",
 			"visible" : true
-		},
-		{
-			"len" : 4,
-			"name" : "b",
-			"offset" : 8,
-			"type" : "ints",
-			"visible" : true
 		}
 	],
 	"indexes" : null,

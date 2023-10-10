@@ -688,10 +688,30 @@ void Table::copy_data(const Value& copy_from, const FieldMeta * field_meta, char
   }
 }
 
-RC Table::update_record(Record * record,const FieldMeta * field_meta,const Value * value){
+RC Table::update_record(Trx *trx, Record *record, const FieldMeta * field_meta,const Value * value){
   copy_data(*value, field_meta, record->data() + field_meta->offset());
-  return this->record_handler_->update_record(record);
-  //return RC::SUCCESS;
+  RC rc = this->record_handler_->update_record(record);
+  if (rc != RC::SUCCESS) {
+        LOG_ERROR("Failed to update record (rid=%d.%d). rc=%d:%s",
+                record->rid().page_num, record->rid().slot_num, rc, strrc(rc));
+    return rc;
+  } 
+  if (trx != nullptr) {
+    rc = trx->update_record(this, record);
+    
+    CLogRecord *clog_record = nullptr;
+    rc = clog_manager_->clog_gen_record(CLogType::REDO_INSERT, trx->get_current_id(), clog_record, name(), table_meta_.record_size(), record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to create a clog record. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
+    rc = clog_manager_->clog_append_record(clog_record);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+  }
+
+  return rc;
 }
 
 class RecordUpdater {
@@ -703,7 +723,7 @@ public:
   RC update_record(Record *record) {
     RC rc = RC::SUCCESS;
     // 在这里修改record的内容，注意现在只用修改单个字段，所以扫描一下record的每个字段，更新对的字段就行了，注意跳过系统字段
-    table_.update_record(record, field_meta_, value_);
+    table_.update_record(trx_, record, field_meta_, value_);
     
 
         
@@ -758,6 +778,26 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
   {
     *updated_count = updater.updated_count();
   }
+  return rc;
+}
+
+RC Table::rollback_update(Trx *trx, const RID &rid)
+{
+  RC rc = RC::SUCCESS;
+  Record record;
+  rc = record_handler_->get_record(&rid, &record);
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+
+  return trx->rollback_update(this, record);  // update record in place
+}
+
+RC Table::recover_update_record(Record *record)
+{
+  RC rc = RC::SUCCESS;
+  rc = record_handler_->update_record(record);
+  
   return rc;
 }
 
