@@ -251,14 +251,6 @@ RC Trx::rollback()
                 "Failed to rollback delete operation. rid=%d.%d, rc=%d:%s", rid.page_num, rid.slot_num, rc, strrc(rc));
           }
         } break;
-        case Operation::Type::UPDATE: {
-          rc = table->rollback_update(this, rid);
-          if (rc != RC::SUCCESS) {
-            // handle rc
-            LOG_ERROR(
-                "Failed to rollback delete operation. rid=%d.%d, rc=%d:%s", rid.page_num, rid.slot_num, rc, strrc(rc));
-          }
-        } break;
         default: {
           LOG_PANIC("Unknown operation. type=%d", (int)operation.type());
         } break;
@@ -283,11 +275,6 @@ RC Trx::rollback_delete(Table *table, Record &record)
   return RC::SUCCESS;
 }
 
-RC Trx::rollback_update(Table *table, Record &record)
-{
-  set_record_trx_id(table, record, 0, false);
-  return RC::SUCCESS;
-}
 
 bool Trx::is_visible(Table *table, const Record *record)
 {

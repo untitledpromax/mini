@@ -781,26 +781,6 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
   return rc;
 }
 
-RC Table::rollback_update(Trx *trx, const RID &rid)
-{
-  RC rc = RC::SUCCESS;
-  Record record;
-  rc = record_handler_->get_record(&rid, &record);
-  if (rc != RC::SUCCESS) {
-    return rc;
-  }
-
-  return trx->rollback_update(this, record);  // update record in place
-}
-
-RC Table::recover_update_record(Record *record)
-{
-  RC rc = RC::SUCCESS;
-  rc = record_handler_->update_record(record);
-  
-  return rc;
-}
-
 class RecordDeleter {
 public:
   RecordDeleter(Table &table, Trx *trx) : table_(table), trx_(trx)
