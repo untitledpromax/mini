@@ -516,6 +516,7 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
       return rc;
     }
     printf("%d %d\n",trx == nullptr, trx->is_visible(this, &record));
+    //TODO 这个if判断起什么作用？
     //if (trx == nullptr || trx->is_visible(this, &record)) { 
       rc = record_reader(&record, context);
       if (rc != RC::SUCCESS) {
