@@ -57,6 +57,7 @@ void value_init_string(Value *value, const char *v)
   value->type = CHARS;
   value->data = strdup(v);
 }
+
 bool check_date(int y, int m, int d)
 {
   // TODO 根据 y:year,m:month,d:day 校验日期是否合法
@@ -98,7 +99,7 @@ bool value_init_date(Value *value, const char *v) {
   bool valid = check_date(y,m,d);
   if(!valid) return false;
   // TODO 将日期转换成整数
-  int date_value = y * 400 + m * 35 + d;
+  int date_value = y * 500 + m * 35 + d;
   // TODO 将value 的 data 属性修改为转换后的日期
   value->data = malloc(sizeof(int));
   memcpy(value->data, &date_value, sizeof(int));

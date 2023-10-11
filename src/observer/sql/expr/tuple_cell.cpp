@@ -38,11 +38,11 @@ void TupleCell::to_string(std::ostream &os) const
   } break;
   case DATES: {
     int v = *(int *)data_;
-    int y = v / 400;
-    int m = (v % 400) / 35;
-    int d = v % 400 % 35;
+    int y = v / 500;
+    int m = (v % 500) / 35;
+    int d = v % 500 % 35;
     char *date_str;
-    date_str = (char *)malloc(sizeof(char) * 20);
+    date_str = (char *)malloc(sizeof(char) * 10);
     sprintf(date_str, "%04d-%02d-%02d", y, m, d);
     os << date_str;
   } break;

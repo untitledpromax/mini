@@ -36,6 +36,7 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
+
   stmt = new UpdateStmt(table, &update.value, update.attribute_name, update.condition_num, update.conditions, 1);
   return RC::SUCCESS;
 }
