@@ -27,7 +27,8 @@ RC field_type_compare_compatible_table(AttrType type_left, AttrType type_right)
       {},
       {CHARS},
       {INTS, FLOATS},
-      {FLOATS,INTS}};
+      {FLOATS,INTS},
+      {DATES}};
   auto &left_compatitable_set = type_map[type_left];
   auto &right_compatitable_set = type_map[type_right];
   if ((left_compatitable_set.find(type_right) == left_compatitable_set.end()) && (right_compatitable_set.find(type_left) == right_compatitable_set.end()))
