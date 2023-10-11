@@ -57,13 +57,59 @@ void value_init_string(Value *value, const char *v)
   value->type = CHARS;
   value->data = strdup(v);
 }
+bool check_date(int y, int m, int d)
+{
+  // TODO 根据 y:year,m:month,d:day 校验日期是否合法
+  // TODO 合法 return true
+  // TODO 不合法 return false
+  if (y < 1970 || y > 2038) return false;
+  if (m < 1 || m > 12) return false;
+  int mx_day; // mx_day记录当月最大天数
+  if (m == 2) {
+    if (y % 4 == 0 && y % 100 != 0 || y % 400 == 0) {
+      mx_day = 29; // 闰年
+    } else {
+      mx_day = 28;
+    }
+  } else if (m <= 7) {
+    if (m % 2 == 1) {
+      mx_day = 31;
+    } else {
+      mx_day = 30;
+    }
+  } else if (m % 2 == 1) {
+      mx_day = 30;
+    } else {
+      mx_day = 31;
+    }
+  if (d > mx_day) {
+    return false;
+  }
+  // TODO more judgement
+  return true;
+}
+bool value_init_date(Value *value, const char *v) {
+  // TODO 将 value 的 type 属性修改为日期属性:DATES
+  value->type = DATES;
+  // 从lex的解析中读取 year,month,day
+  int y,m,d;
+  sscanf(v, "%d-%d-%d", &y, &m, &d);//not check return value eq 3, lex guarantee
+  // 对读取的日期做合法性校验
+  bool valid = check_date(y,m,d);
+  if(!valid) return false;
+  // TODO 将日期转换成整数
+  int date_value = y * 400 + m * 35 + d;
+  // TODO 将value 的 data 属性修改为转换后的日期
+  value->data = malloc(sizeof(int));
+  memcpy(value->data, &date_value, sizeof(int));
+  return true;
+}
 void value_destroy(Value *value)
 {
   value->type = UNDEFINED;
   free(value->data);
   value->data = nullptr;
 }
-
 void condition_init(Condition *condition, CompOp comp, int left_is_attr, RelAttr *left_attr, Value *left_value,
     int right_is_attr, RelAttr *right_attr, Value *right_value)
 {
