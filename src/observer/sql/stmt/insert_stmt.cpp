@@ -30,6 +30,9 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
+  int value_num = inserts.value_num;
+  const Value *values = inserts.values;
+  
   // check whether the table exists
   Table *table = db->find_table(table_name);
   if (nullptr == table) {
@@ -38,8 +41,6 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value *values = inserts.values;
-  const int value_num = inserts.value_num;
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num() - table_meta.sys_field_num();
   if (field_num != value_num) {

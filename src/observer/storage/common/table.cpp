@@ -756,19 +756,6 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     const Condition conditions[], int *updated_count)
 {
   CompositeConditionFilter condition_filter;
-
-  //检查筛选条件是否合法
-  for (int i = 0; i < condition_num; i++) {
-    Condition condition = conditions[i];
-    if (nullptr == condition.right_value.data && nullptr == condition.left_value.data) {
-      return RC::INVALID_ARGUMENT;
-    }
-  }
-
-  //检查数据是否合法
-  if (nullptr == value->data) {
-    return RC::INVALID_ARGUMENT;
-  }
   
   RC rc = condition_filter.init(*this, conditions, condition_num);
   if (rc != RC::SUCCESS) {

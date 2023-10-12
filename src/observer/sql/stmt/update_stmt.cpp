@@ -32,6 +32,7 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
   // TODO
   const char *table_name = update.relation_name;
   Table *table = db->find_table(table_name);
+
   if (nullptr == table) {
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;

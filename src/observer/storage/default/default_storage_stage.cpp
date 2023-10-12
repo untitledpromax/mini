@@ -178,7 +178,7 @@ void DefaultStorageStage::handle_event(StageEvent *event)
       break;
   }
 
-  if (rc == RC::SUCCESS && !session->is_trx_multi_operation_mode()) {
+  if (rc == RC::SUCCESS && !session->is_trx_multi_operation_mode() && sql->flag != SCF_DROP_TABLE) {
     rc = current_trx->commit();
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to commit trx. rc=%d:%s", rc, strrc(rc));

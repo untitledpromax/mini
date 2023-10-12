@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/common/db.h"
 #include "storage/common/table.h"
+#include "storage/common/condition_filter.h"
 
 FilterStmt::~FilterStmt()
 {
@@ -99,8 +100,18 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
       LOG_WARN("cannot find attr");
       return rc;
     }
+    rc = field_type_compare_compatible_table(field->type(), condition.right_value.type);
+    if (rc != SUCCESS) {
+      return rc;
+    }
     left = new FieldExpr(table, field);
   } else {
+    if (!condition.right_is_attr) {
+      rc = field_type_compare_compatible_table(condition.left_value.type, condition.right_value.type);
+      if (rc != SUCCESS) {
+        return rc;
+      }
+    }
     left = new ValueExpr(condition.left_value);
   }
 
@@ -111,6 +122,10 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot find attr");
       delete left;
+      return rc;
+    }
+    rc = field_type_compare_compatible_table(field->type(), condition.left_value.type);
+    if (rc != SUCCESS) {
       return rc;
     }
     right = new FieldExpr(table, field);
@@ -124,5 +139,6 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_right(right);
 
   // 检查两个类型是否能够比较
+  
   return rc;
 }
