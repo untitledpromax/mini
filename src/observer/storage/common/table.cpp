@@ -122,7 +122,6 @@ RC Table::create(
 
 RC Table::destroy(const char* dir) {
     RC rc = sync();//刷新所有脏页
-
     if(rc != RC::SUCCESS) return rc;
 
     std::string path = table_meta_file(dir, name());
@@ -131,7 +130,7 @@ RC Table::destroy(const char* dir) {
         return RC::GENERIC_ERROR;
     }
 
-    std::string data_file = std::string(dir) + "/" + name() + TABLE_DATA_SUFFIX;
+    std::string data_file = table_data_file(dir, name());
     if(unlink(data_file.c_str()) != 0) { // 删除描述表元数据的文件
         LOG_ERROR("Failed to remove data file=%s, errno=%d", data_file.c_str(), errno);
         return RC::GENERIC_ERROR;
@@ -155,7 +154,12 @@ RC Table::destroy(const char* dir) {
             return RC::GENERIC_ERROR;
         }
     }
-    
+
+    // 清除bufferpool缓存
+   // std::string buffer_data_file = table_data_file(dir, name());
+    BufferPoolManager &bpm = BufferPoolManager::instance();
+    rc =bpm.remove_file(data_file.c_str());
+  
     return RC::SUCCESS;
 }
 
