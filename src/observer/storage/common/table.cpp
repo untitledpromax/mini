@@ -120,49 +120,63 @@ RC Table::create(
   return rc;
 }
 
-RC Table::destroy(const char* dir) {
-    RC rc = sync();//刷新所有脏页
-    if(rc != RC::SUCCESS) return rc;
-
-    const int index_num = table_meta_.index_num();
-    for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
-        ((BplusTreeIndex*)indexes_[i])->close();
-        const IndexMeta* index_meta = table_meta_.index(i);
-        std::string index_file = table_index_file(dir, name(), index_meta->name());
-        if(unlink(index_file.c_str()) != 0) {
-            LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file.c_str(), errno);
-            return RC::GENERIC_ERROR;
-        }
+RC Table::remove_record_handler()
+{
+  RC rc = RC::SUCCESS;
+  if (record_handler_) {
+    record_handler_->close();
+    delete record_handler_;
+    record_handler_ = nullptr;
+  }
+  if (data_buffer_pool_) {
+    rc = data_buffer_pool_->close_file();
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to close data file. rc=%d:%s", rc, strrc(rc));
+      return rc;
     }
+    data_buffer_pool_ = nullptr;
+  }
+  return rc;
+}
 
-    std::string path = table_meta_file(dir, name());
-    if(unlink(path.c_str()) != 0) {
-        LOG_ERROR("Failed to remove meta file=%s, errno=%d", path.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
 
-    std::string data_file = table_data_file(dir, name());
-    if(unlink(data_file.c_str()) != 0) { // 删除描述表元数据的文件
-        LOG_ERROR("Failed to remove data file=%s, errno=%d", data_file.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
+RC Table::destroy(const char *path, const char *name, const char *base_dir) {
+    if (common::is_blank(name)) {
+    LOG_WARN("Name cannot be empty");
+    return RC::INVALID_ARGUMENT;
+  }
+  LOG_INFO("Begin to drop table %s:%s", base_dir, name);
 
-    /*
-    std::string text_data_file = std::string(dir) + "/" + name() + TABLE_TEXT_DATA_SUFFIX;
-    if(unlink(text_data_file.c_str()) != 0) { // 删除表实现text字段的数据文件（后续实现了text case时需要考虑，最开始可以不考虑这个逻辑）
-        LOG_ERROR("Failed to remove text data file=%s, errno=%d", text_data_file.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
-    */
-    
-    
+  RC rc = RC::SUCCESS;
+  // 判断表文件是否已经存在
+  int fd = ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  if (!(fd < 0 && EEXIST == errno)) {
+    LOG_ERROR("Failed to drop table file, it has not been created. %s, EEXIST, %s", path, strerror(errno));
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+  close(fd);
 
-    // 清除bufferpool缓存
-   // std::string buffer_data_file = table_data_file(dir, name());
-    BufferPoolManager &bpm = BufferPoolManager::instance();
-    rc =bpm.remove_file(data_file.c_str());
-  
-    return RC::SUCCESS;
+  rc = remove_record_handler();
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table %s due to remove record handler failed.", name);
+    return rc;
+  }
+
+  BufferPoolManager &bpm = BufferPoolManager::instance();
+  std::string data_file = table_data_file(base_dir, name);
+  rc = bpm.remove_file(data_file.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table %s due to remove data file failed.", name);
+    return rc;
+  }
+
+  if (remove(path) != 0) {
+    LOG_ERROR("Failed to remove table file. filename=%s, errmsg=%d:%s", path, errno, strerror(errno));
+    return RC::IOERR;
+  }
+
+  LOG_INFO("Successfully drop table %s:%s", base_dir, name);
+  return rc;
 }
 
 RC Table::open(const char *meta_file, const char *base_dir, CLogManager *clog_manager)
