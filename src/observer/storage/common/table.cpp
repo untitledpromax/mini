@@ -124,6 +124,17 @@ RC Table::destroy(const char* dir) {
     RC rc = sync();//刷新所有脏页
     if(rc != RC::SUCCESS) return rc;
 
+    const int index_num = table_meta_.index_num();
+    for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
+        ((BplusTreeIndex*)indexes_[i])->close();
+        const IndexMeta* index_meta = table_meta_.index(i);
+        std::string index_file = table_index_file(dir, name(), index_meta->name());
+        if(unlink(index_file.c_str()) != 0) {
+            LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file.c_str(), errno);
+            return RC::GENERIC_ERROR;
+        }
+    }
+
     std::string path = table_meta_file(dir, name());
     if(unlink(path.c_str()) != 0) {
         LOG_ERROR("Failed to remove meta file=%s, errno=%d", path.c_str(), errno);
@@ -144,16 +155,7 @@ RC Table::destroy(const char* dir) {
     }
     */
     
-    const int index_num = table_meta_.index_num();
-    for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
-        ((BplusTreeIndex*)indexes_[i])->close();
-        const IndexMeta* index_meta = table_meta_.index(i);
-        std::string index_file = table_index_file(dir, name(), index_meta->name());
-        if(unlink(index_file.c_str()) != 0) {
-            LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file.c_str(), errno);
-            return RC::GENERIC_ERROR;
-        }
-    }
+    
 
     // 清除bufferpool缓存
    // std::string buffer_data_file = table_data_file(dir, name());
@@ -527,7 +529,6 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
       }
       record_count++;
     }
-    std::printf("%d\n", record_count);
   //}
 
   scanner.close_scan();
@@ -558,14 +559,14 @@ RC Table::scan_record_by_index(Trx *trx, IndexScanner *scanner, ConditionFilter 
       LOG_ERROR("Failed to fetch record of rid=%d:%d, rc=%d:%s", rid.page_num, rid.slot_num, rc, strrc(rc));
       break;
     }
-
-    if ((trx == nullptr || trx->is_visible(this, &record)) && (filter == nullptr || filter->filter(record))) {
+    // what is the fucking usage of this if statement???
+    //if ((trx == nullptr || trx->is_visible(this, &record)) && (filter == nullptr || filter->filter(record))) {
       rc = record_reader(&record, context);
       if (rc != RC::SUCCESS) {
         LOG_TRACE("Record reader break the table scanning. rc=%d:%s", rc, strrc(rc));
         break;
       }
-    }
+    //}
 
     record_count++;
   }
