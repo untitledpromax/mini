@@ -515,7 +515,6 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
       LOG_WARN("failed to fetch next record. rc=%d:%s", rc, strrc(rc));
       return rc;
     }
-    printf("%d %d\n",trx == nullptr, trx->is_visible(this, &record));
     //TODO 这个if判断起什么作用？
     //if (trx == nullptr || trx->is_visible(this, &record)) { 
       rc = record_reader(&record, context);
