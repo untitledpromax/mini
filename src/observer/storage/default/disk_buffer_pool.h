@@ -252,6 +252,7 @@ public:
    */
   RC purge_page(PageNum page_num);
   RC purge_all_pages();
+  RC dispose_all_page();
 
   /**
    * 此函数用于解除pageHandle对应页面的驻留缓冲区限制。

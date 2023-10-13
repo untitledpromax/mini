@@ -129,7 +129,7 @@ RC Table::remove_record_handler()
     record_handler_ = nullptr;
   }
   if (data_buffer_pool_) {
-    rc = data_buffer_pool_->flush_all_pages();
+    rc = data_buffer_pool_->dispose_all_page();
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to flush pages. rc=%d:%s", rc, strrc(rc));
       return rc;

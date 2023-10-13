@@ -17,27 +17,28 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/db.h"
 #include "storage/common/table.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
-  : table_ (table), values_(values), value_amount_(value_amount)
+InsertStmt::InsertStmt(Table *table, const InsertTuples *tuples, int tuple_amount)
+  : table_ (table), tuples_(tuples), tuple_amount_(tuple_amount)
 {}
 
 RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
 {
-  for (int i = 0; i < inserts.value_num; i++) {
-    if (nullptr == inserts.values[i].data) {
+  for (size_t i = 0; i < inserts.tuple_num; i++) {
+    for (size_t j = 0; j < inserts.tuples[i].value_num; j++) {
+      if (nullptr == inserts.tuples[i].values[j].data) {
       return RC::INVALID_ARGUMENT;
+      }
     }
   }
   const char *table_name = inserts.relation_name;
-  if (nullptr == db || nullptr == table_name || inserts.value_num <= 0) {
+  for (size_t i = 0; i < inserts.tuple_num; i++) {
+    if (nullptr == db || nullptr == table_name || inserts.tuples[i].value_num <= 0) {
     LOG_WARN("invalid argument. db=%p, table_name=%p, value_num=%d", 
-             db, table_name, inserts.value_num);
+             db, table_name, inserts.tuples[i].value_num);
     return RC::INVALID_ARGUMENT;
+    }
   }
 
-  int value_num = inserts.value_num;
-  const Value *values = inserts.values;
-  
   // check whether the table exists
   Table *table = db->find_table(table_name);
   if (nullptr == table) {
@@ -45,28 +46,34 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  // check the fields number
-  const TableMeta &table_meta = table->table_meta();
-  const int field_num = table_meta.field_num() - table_meta.sys_field_num();
-  if (field_num != value_num) {
-    LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
-    return RC::SCHEMA_FIELD_MISSING;
-  }
+  for (size_t i = 0; i < inserts.tuple_num; i++){
+    int value_num = inserts.tuples[i].value_num;
+    const Value *values = inserts.tuples[i].values;
 
-  // check fields type
-  const int sys_field_num = table_meta.sys_field_num();
-  for (int i = 0; i < value_num; i++) {
-    const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
-    const AttrType field_type = field_meta->type();
-    const AttrType value_type = values[i].type;
-    if (field_type != value_type) { // TODO try to convert the value type to field type
-      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-               table_name, field_meta->name(), field_type, value_type);
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    // check the fields number
+    const TableMeta &table_meta = table->table_meta();
+    const int field_num = table_meta.field_num() - table_meta.sys_field_num();
+    if (field_num != value_num) {
+      LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+
+    // check fields type
+    const int sys_field_num = table_meta.sys_field_num();
+    for (int i = 0; i < value_num; i++) {
+      const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
+      const AttrType field_type = field_meta->type();
+      const AttrType value_type = values[i].type;
+      if (field_type != value_type) { // TODO try to convert the value type to field type
+        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+                 table_name, field_meta->name(), field_type, value_type);
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
     }
   }
-
+  const InsertTuples *insertTuples = inserts.tuples;
+  int tuple_amount = inserts.tuple_num;
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, insertTuples, tuple_amount);
   return RC::SUCCESS;
 }

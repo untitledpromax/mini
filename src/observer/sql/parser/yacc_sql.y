@@ -17,6 +17,7 @@ typedef struct ParserContext {
   size_t from_length;
   size_t value_length;
   Value values[MAX_NUM];
+  InsertTuples tuples[MAX_NUM];
   Condition conditions[MAX_NUM];
   CompOp comp;
 	char id[MAX_NUM];
@@ -43,7 +44,6 @@ void yyerror(yyscan_t scanner, const char *str)
   context->from_length = 0;
   context->select_length = 0;
   context->value_length = 0;
-  context->ssql->sstr.insertion.value_num = 0;
   printf("parse sql failed. error=%s", str);
 }
 
@@ -283,20 +283,11 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES v vs RBRACE SEMICOLON 
-		{
-			// CONTEXT->values[CONTEXT->value_length++] = *$6;
-
-			CONTEXT->ssql->flag=SCF_INSERT;//"insert";
-			// CONTEXT->ssql->sstr.insertion.relation_name = $3;
-			// CONTEXT->ssql->sstr.insertion.value_num = CONTEXT->value_length;
-			// for(i = 0; i < CONTEXT->value_length; i++){
-			// 	CONTEXT->ssql->sstr.insertion.values[i] = CONTEXT->values[i];
-      // }
-			
-
-
-    }
+    INSERT INTO ID VALUES v vs SEMICOLON 
+	{
+			CONTEXT->ssql->flag = SCF_INSERT;//"insert";	
+			CONTEXT->ssql->sstr.insertion.relation_name = strdup($3);	
+    };
 vs:
     /* empty */
     | COMMA v vs {
@@ -304,16 +295,15 @@ vs:
 	};
 v :
     LBRACE value value_list RBRACE {
-		inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
-		     //临时变量清零
-        CONTEXT->value_length=0;
-	}
+		inserts_init(&CONTEXT->ssql->sstr.insertion, CONTEXT->values, CONTEXT->value_length);
+		//临时变量清零
+        CONTEXT->value_length = 0;
+	};
 value_list:
     /* empty */
     | COMMA value value_list  { 
-  		// CONTEXT->values[CONTEXT->value_length++] = *$2;
-	  }
-    ;
+  		
+	  };
 value:
     NUMBER{	
   		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $1);
