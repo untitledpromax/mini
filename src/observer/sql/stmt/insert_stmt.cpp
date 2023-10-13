@@ -23,6 +23,11 @@ InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
 
 RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
 {
+  for (int i = 0; i < inserts.value_num; i++) {
+    if (nullptr == inserts.values[i].data) {
+      return RC::INVALID_ARGUMENT;
+    }
+  }
   const char *table_name = inserts.relation_name;
   if (nullptr == db || nullptr == table_name || inserts.value_num <= 0) {
     LOG_WARN("invalid argument. db=%p, table_name=%p, value_num=%d", 
