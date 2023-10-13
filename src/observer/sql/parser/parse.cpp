@@ -63,7 +63,7 @@ bool check_date(int y, int m, int d)
   // TODO 根据 y:year,m:month,d:day 校验日期是否合法
   // TODO 合法 return true
   // TODO 不合法 return false
-  if (y < 1970 || y > 2038) return false;
+  // if (y < 1970 || y > 2038) return false;
   if (m < 1 || m > 12) return false;
   int mx_day; // mx_day记录当月最大天数
   if (m == 2) {
