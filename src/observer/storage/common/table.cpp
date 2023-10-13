@@ -129,6 +129,11 @@ RC Table::remove_record_handler()
     record_handler_ = nullptr;
   }
   if (data_buffer_pool_) {
+    rc = data_buffer_pool_->flush_all_pages();
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to flush pages. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
     rc = data_buffer_pool_->close_file();
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to close data file. rc=%d:%s", rc, strrc(rc));
@@ -141,7 +146,7 @@ RC Table::remove_record_handler()
 
 
 RC Table::destroy(const char *path, const char *name, const char *base_dir) {
-    if (common::is_blank(name)) {
+  if (common::is_blank(name)) {
     LOG_WARN("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
@@ -155,12 +160,18 @@ RC Table::destroy(const char *path, const char *name, const char *base_dir) {
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
   close(fd);
+  std::string index_file;
+  for(std::vector<Index *>::iterator iter=indexes_.begin();iter!=indexes_.end();++iter){
+    index_file=table_index_file(base_dir_.c_str(), name, (*iter)->index_meta().name());
+    remove(index_file.c_str());
+  }
 
   rc = remove_record_handler();
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to drop table %s due to remove record handler failed.", name);
     return rc;
   }
+
 
   BufferPoolManager &bpm = BufferPoolManager::instance();
   std::string data_file = table_data_file(base_dir, name);
